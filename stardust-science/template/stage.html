@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>星尘科普动画 · 舞台</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+  canvas { display: block; width: 1920px; height: 1080px; }
+</style>
+</head>
+<body>
+<canvas id="stage" width="1920" height="1080"></canvas>
+<script>
+"use strict";
+/* 星尘科普动画 · Canvas 粒子引擎
+ * 确定性渲染：所有随机数来自 seeded PRNG，所有动画是时间 t 的纯函数。
+ * 对外接口：window.STORYBOARD（分镜）、window.DURATION（总时长）、window.seek(t)。
+ */
+const W = 1920, H = 1080;
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+
+/* ---------- seeded PRNG (mulberry32) ---------- */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashStr(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+const FONT = '"Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+const SERIF = '"Noto Serif CJK SC", "Songti SC", serif';
+
+/* ---------- 分镜（由 build.py 注入；此处为默认示例） ---------- */
+window.STORYBOARD = window.STORYBOARD || {
+  title: "黑洞：连光都逃不出的地方",
+  shots: [
+    { type: "title", duration: 5, title: "黑洞", subtitle: "连光都逃不出的地方", narration: "黑洞，连光都逃不出的地方。" },
+    { type: "blackhole", duration: 9, title: "人马座 A*", subtitle: "银河系中心的超大质量黑洞",
+      narration: "在银河系中心，藏着一个四百万倍太阳质量的黑洞。",
+      labels: [
+        { text: "黑洞", sub: "SAGITTARIUS A*", side: "left" },
+        { text: "26000 光年", sub: "DISTANCE TO SGR A* · 26,000 LY", side: "right" }
+      ] },
+    { type: "bars", duration: 7, title: "质量对比", subtitle: "太阳质量为单位",
+      narration: "它的质量，是太阳的四百万倍。",
+      bars: [
+        { label: "太阳", value: 0.02 },
+        { label: "人马座 A*", value: 1.0 }
+      ] },
+    { type: "outro", duration: 4, title: "下期预告", subtitle: "白洞真的存在吗？", narration: "下期，我们聊聊白洞。" }
+  ]
+};
+
+const SB = window.STORYBOARD;
+const SHOTS = SB.shots;
+const DUR = SHOTS.reduce((a, s) => a + s.duration, 0);
+window.DURATION = DUR;
+
+/* shot 时间边界 */
+const BOUNDS = [];
+{ let acc = 0; for (const s of SHOTS) { BOUNDS.push([acc, acc + s.duration]); acc += s.duration; } }
+
+/* ---------- 基础绘制 ---------- */
+function drawVignette() {
+  const g = ctx.createRadialGradient(W/2, H/2, H*0.35, W/2, H/2, H*0.85);
+  g.addColorStop(0, "rgba(0,0,0,0)");
+  g.addColorStop(1, "rgba(0,0,0,0.55)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawStarfield(t, seed, density, parallax) {
+  const rnd = mulberry32(seed);
+  const n = density;
+  for (let i = 0; i < n; i++) {
+    const x0 = rnd() * W, y0 = rnd() * H;
+    const r = rnd();
+    const size = r < 0.9 ? 1 + rnd() * 1.6 : 2.5 + rnd() * 2;
+    const x = (x0 - t * parallax * (0.3 + r)) % W;
+    const xx = x < 0 ? x + W : x;
+    const tw = 0.55 + 0.45 * Math.sin(t * (1 + r * 2) + i);
+    const a = (0.25 + 0.65 * r) * tw;
+    ctx.fillStyle = r > 0.96 ? `rgba(255,240,210,${a})` : `rgba(220,230,255,${a})`;
+    ctx.beginPath();
+    ctx.arc(xx, y0, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawNebula(t, seed) {
+  const rnd = mulberry32(seed);
+  const blobs = 3;
+  for (let i = 0; i < blobs; i++) {
+    const cx = rnd() * W, cy = rnd() * H;
+    const rad = 320 + rnd() * 420;
+    const hue = [265, 220, 190][i % 3];
+    const drift = Math.sin(t * 0.12 + i * 2.1) * 40;
+    const g = ctx.createRadialGradient(cx + drift, cy, 0, cx + drift, cy, rad);
+    g.addColorStop(0, `hsla(${hue}, 60%, 22%, 0.34)`);
+    g.addColorStop(1, "hsla(0, 0%, 0%, 0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+/* 文字粒子引擎：把文字采样成粒子 */
+function textParticles(text, font, seed, step) {
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H;
+  const c = off.getContext('2d', { willReadFrequently: true });
+  c.fillStyle = '#fff';
+  c.font = font;
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(text, W / 2, H / 2 - 40);
+  const data = c.getImageData(0, 0, W, H).data;
+  const rnd = mulberry32(seed);
+  const pts = [];
+  const st = step || 7;
+  for (let y = 0; y < H; y += st) {
+    for (let x = 0; x < W; x += st) {
+      if (data[(y * W + x) * 4 + 3] > 128) {
+        pts.push({
+          tx: x, ty: y,
+          sx: rnd() * W, sy: rnd() * H,
+          ex: rnd() * W, ey: rnd() * H,
+          r: 1 + rnd() * 2.4,
+          gold: rnd() < 0.35,
+          ph: rnd() * Math.PI * 2
+        });
+      }
+    }
+  }
+  return pts;
+}
+const particleCache = {};
+function getParticles(text, font, seed) {
+  const key = text + '|' + font;
+  if (!particleCache[key]) particleCache[key] = textParticles(text, font, seed, 7);
+  return particleCache[key];
+}
+
+/* 粒子大字：0→1.4s 聚拢，结尾 1s 消散 */
+function drawParticleTitle(text, lt, dur, font, seed) {
+  const pts = getParticles(text, font || `900 200px ${FONT}`, seed || 1234);
+  const IN = 1.4, OUT = 1.0;
+  for (const p of pts) {
+    let x, y, alpha;
+    if (lt < IN) {
+      const k = easeOutCubic(lt / IN);
+      x = p.sx + (p.tx - p.sx) * k;
+      y = p.sy + (p.ty - p.sy) * k;
+      alpha = k;
+    } else if (lt > dur - OUT) {
+      const k = (lt - (dur - OUT)) / OUT;
+      x = p.tx + (p.ex - p.tx) * k;
+      y = p.ty + (p.ey - p.ty) * k;
+      alpha = 1 - k;
+    } else {
+      const fl = Math.sin(lt * 2 + p.ph) * 3;
+      x = p.tx + fl; y = p.ty + Math.cos(lt * 1.6 + p.ph) * 3;
+      alpha = 0.92;
+    }
+    ctx.fillStyle = p.gold
+      ? `rgba(255, 214, 130, ${alpha})`
+      : `rgba(235, 242, 255, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(x, y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+function easeInOut(x) { return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; }
+function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+
+/* ---------- 字幕 ---------- */
+function drawSubtitle(text, lt, dur) {
+  if (!text) return;
+  const a = clamp01(Math.min(lt / 0.4, (dur - lt) / 0.4, 1));
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.font = `500 54px ${FONT}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const y = H - 150;
+  const w = ctx.measureText(text).width;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  const pad = 36;
+  roundRect(W/2 - w/2 - pad, y - 48, w + pad * 2, 96, 18);
+  ctx.fill();
+  ctx.fillStyle = '#f5f7ff';
+  ctx.fillText(text, W / 2, y);
+  ctx.restore();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/* 大标题 + 副标题（非粒子版，用于小标题） */
+function drawHeadline(title, subtitle, lt, dur) {
+  const a = clamp01(Math.min(lt / 0.5, (dur - lt) / 0.5, 1));
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.textAlign = 'center';
+  if (title) {
+    ctx.font = `900 120px ${FONT}`;
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(255,200,120,0.55)';
+    ctx.shadowBlur = 42;
+    ctx.fillText(title, W / 2, 300 + easeOutCubic(clamp01(lt / 0.8)) * 0);
+    ctx.shadowBlur = 0;
+  }
+  if (subtitle) {
+    ctx.font = `400 52px ${FONT}`;
+    ctx.fillStyle = 'rgba(214,226,255,0.92)';
+    ctx.fillText(subtitle, W / 2, 420);
+  }
+  ctx.restore();
+}
+
+/* ---------- 镜头类型 ---------- */
+function shotTitle(s, lt, t) {
+  drawStarfield(t, 11, 260, 6);
+  drawNebula(t, 21);
+  drawParticleTitle(s.title || '', lt, s.duration, `900 210px ${FONT}`, hashStr('t' + s.title));
+  if (s.subtitle) {
+    const a = clamp01((lt - 0.9) / 0.6) * clamp01((s.duration - lt) / 0.6);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = `400 56px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,214,140,0.95)';
+    ctx.fillText(s.subtitle, W / 2, H / 2 + 190);
+    ctx.restore();
+  }
+}
+
+function shotBlackhole(s, lt, t) {
+  const cx = W / 2, cy = H / 2 - 30;
+  drawStarfield(t, 31, 320, 4);
+  drawNebula(t, 41);
+  const rnd = mulberry32(hashStr('bh' + (s.title || '')));
+
+  /* 吸积盘粒子 */
+  const N = 900;
+  for (let i = 0; i < N; i++) {
+    const rr = 130 + rnd() * 260;
+    const w = 0.9 / Math.sqrt(rr / 130) * 0.55;
+    const a0 = rnd() * Math.PI * 2;
+    const ang = a0 + t * w * 2.2;
+    const tilt = 0.42;
+    const x = cx + Math.cos(ang) * rr * 1.35;
+    const y = cy + Math.sin(ang) * rr * tilt;
+    const heat = 1 - (rr - 130) / 260;
+    const tw = 0.5 + 0.5 * Math.sin(t * 3 + i);
+    const alpha = (0.25 + 0.65 * heat) * (0.6 + 0.4 * tw);
+    const col = heat > 0.66 ? '255,196,110' : heat > 0.33 ? '255,150,120' : '150,170,255';
+    ctx.fillStyle = `rgba(${col},${alpha.toFixed(3)})`;
+    const sz = 1 + rnd() * 2.2 * heat + 0.6;
+    ctx.beginPath();
+    ctx.arc(x, y, sz, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /* 光子环 */
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,236,190,0.9)';
+  ctx.lineWidth = 5;
+  ctx.shadowColor = 'rgba(255,200,120,0.9)';
+  ctx.shadowBlur = 34;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 118 * 1.35, 118 * 0.42, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  /* 黑洞本体 + 辉光 */
+  const g = ctx.createRadialGradient(cx, cy, 40, cx, cy, 200);
+  g.addColorStop(0, 'rgba(0,0,0,1)');
+  g.addColorStop(0.55, 'rgba(0,0,0,1)');
+  g.addColorStop(0.72, 'rgba(255,170,90,0.5)');
+  g.addColorStop(1, 'rgba(255,150,80,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 200 * 1.35, 200 * 0.42, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 112 * 1.35, 112 * 0.42, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* 标注线 */
+  drawLabels(s.labels || [], lt, s.duration, cx, cy);
+  if (s.title) drawHeadline('', '', 0, 1);
+  if (s.title) {
+    ctx.save();
+    ctx.globalAlpha = clamp01(lt / 0.5);
+    ctx.font = `900 84px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(s.title, W / 2, 150);
+    if (s.subtitle) {
+      ctx.font = `400 44px ${FONT}`;
+      ctx.fillStyle = 'rgba(214,226,255,0.85)';
+      ctx.fillText(s.subtitle, W / 2, 218);
+    }
+    ctx.restore();
+  }
+}
+
+function drawLabels(labels, lt, dur, cx, cy) {
+  labels.forEach((L, i) => {
+    const a = clamp01((lt - 0.6 - i * 0.35) / 0.5);
+    if (a <= 0) return;
+    const left = L.side !== 'right';
+    const lx = left ? 170 : W - 170;
+    const ly = 320 + i * 190;
+    const px = cx + (left ? -150 : 150);
+    const py = cy + (left ? -40 : 40);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = 'rgba(255,214,140,0.75)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(lx + (left ? 150 : -150), ly);
+    ctx.lineTo(px, py);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,214,140,0.95)';
+    ctx.beginPath();
+    ctx.arc(px, py, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.textAlign = left ? 'left' : 'right';
+    ctx.font = `900 58px ${FONT}`;
+    ctx.fillStyle = '#fff';
+    ctx.fillText(L.text, lx, ly - 8);
+    if (L.sub) {
+      ctx.font = `400 34px ${FONT}`;
+      ctx.fillStyle = 'rgba(255,214,140,0.85)';
+      ctx.fillText(L.sub, lx, ly + 44);
+    }
+    ctx.restore();
+  });
+}
+
+function shotOrbits(s, lt, t) {
+  const cx = W / 2, cy = H / 2;
+  drawStarfield(t, 51, 300, 5);
+  drawNebula(t, 61);
+  const bodies = s.bodies || [
+    { label: "恒星", r: 130, size: 26, color: "255,200,120", speed: 0.5 },
+    { label: "行星", r: 240, size: 16, color: "140,180,255", speed: 0.32 },
+    { label: "卫星", r: 350, size: 10, color: "200,220,255", speed: 0.2 }
+  ];
+  /* 中心天体 */
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 90);
+  g.addColorStop(0, 'rgba(255,220,150,1)');
+  g.addColorStop(0.4, 'rgba(255,170,90,0.85)');
+  g.addColorStop(1, 'rgba(255,140,60,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(cx, cy, 90, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffd9a0';
+  ctx.beginPath(); ctx.arc(cx, cy, 34, 0, Math.PI * 2); ctx.fill();
+
+  bodies.forEach((b, i) => {
+    ctx.save();
+    ctx.globalAlpha = clamp01((lt - i * 0.3) / 0.6);
+    ctx.strokeStyle = 'rgba(160,180,230,0.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, b.r, 0, Math.PI * 2); ctx.stroke();
+    const ang = t * b.speed + i * 2.1;
+    const x = cx + Math.cos(ang) * b.r, y = cy + Math.sin(ang) * b.r;
+    ctx.fillStyle = `rgba(${b.color},0.95)`;
+    ctx.shadowColor = `rgba(${b.color},0.8)`;
+    ctx.shadowBlur = 22;
+    ctx.beginPath(); ctx.arc(x, y, b.size, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.font = `500 40px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(240,246,255,0.92)';
+    ctx.fillText(b.label, x, y - b.size - 18);
+    ctx.restore();
+  });
+  if (s.title) drawHeadline(s.title, s.subtitle, lt, s.duration);
+}
+
+function shotBars(s, lt, t) {
+  drawStarfield(t, 71, 240, 5);
+  drawNebula(t, 81);
+  if (s.title) drawHeadline(s.title, s.subtitle, lt, s.duration);
+  const bars = s.bars || [];
+  const baseY = 560;
+  bars.forEach((b, i) => {
+    const y = baseY + i * 130;
+    const k = easeInOut(clamp01((lt - 0.4 - i * 0.4) / 1.1));
+    const w = 1100 * (b.value || 0) * k;
+    ctx.save();
+    ctx.textAlign = 'right';
+    ctx.font = `500 46px ${FONT}`;
+    ctx.fillStyle = 'rgba(240,246,255,0.9)';
+    ctx.fillText(b.label, 480, y + 16);
+    const g = ctx.createLinearGradient(520, 0, 520 + 1100, 0);
+    g.addColorStop(0, 'rgba(255,190,110,0.95)');
+    g.addColorStop(1, 'rgba(255,120,90,0.95)');
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    roundRect(520, y - 26, 1100, 52, 26); ctx.fill();
+    ctx.fillStyle = g;
+    if (w > 4) { roundRect(520, y - 26, w, 52, 26); ctx.fill(); }
+    ctx.textAlign = 'left';
+    ctx.font = `700 40px ${FONT}`;
+    ctx.fillStyle = 'rgba(255,214,140,0.95)';
+    if (b.note && k > 0.9) ctx.fillText(b.note, 520 + w + 24, y + 14);
+    ctx.restore();
+  });
+}
+
+function shotOutro(s, lt, t) {
+  drawStarfield(t, 91, 300, 7);
+  drawNebula(t, 101);
+  drawParticleTitle(s.title || '完', lt, s.duration, `900 170px ${FONT}`, hashStr('o' + s.title));
+  if (s.subtitle) {
+    const a = clamp01((lt - 1.0) / 0.6) * clamp01((s.duration - lt) / 0.6);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = `400 54px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(214,226,255,0.92)';
+    ctx.fillText(s.subtitle, W / 2, H / 2 + 170);
+    ctx.restore();
+  }
+}
+
+/* ---------- 胶片颗粒（确定性：按帧号播种） ---------- */
+function drawGrain(frameNo) {
+  const rnd = mulberry32(9000 + frameNo);
+  ctx.save();
+  ctx.globalAlpha = 0.05;
+  for (let i = 0; i < 260; i++) {
+    const v = rnd() > 0.5 ? 255 : 0;
+    ctx.fillStyle = `rgb(${v},${v},${v})`;
+    ctx.fillRect(rnd() * W, rnd() * H, 2, 2);
+  }
+  ctx.restore();
+}
+
+/* ---------- 主入口 ---------- */
+let lastFrameNo = -1;
+window.seek = function (t) {
+  t = Math.max(0, Math.min(DUR - 1e-3, t));
+  const frameNo = Math.round(t * 30);
+  lastFrameNo = frameNo;
+  let idx = 0, lt = t;
+  for (let i = 0; i < SHOTS.length; i++) {
+    if (t >= BOUNDS[i][0] && t < BOUNDS[i][1]) { idx = i; lt = t - BOUNDS[i][0]; break; }
+  }
+  const s = SHOTS[idx];
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#02030a';
+  ctx.fillRect(0, 0, W, H);
+  /* 镜头切换：0.35s 淡入 */
+  const fade = clamp01(lt / 0.35);
+  ctx.save();
+  ctx.globalAlpha = fade;
+  switch (s.type) {
+    case 'title': shotTitle(s, lt, t); break;
+    case 'blackhole': shotBlackhole(s, lt, t); break;
+    case 'orbits': shotOrbits(s, lt, t); break;
+    case 'bars': shotBars(s, lt, t); break;
+    case 'outro': shotOutro(s, lt, t); break;
+    default: shotTitle(s, lt, t);
+  }
+  ctx.restore();
+  /* 字幕（旁白） */
+  drawSubtitle(s.narration || '', lt, s.duration);
+  drawVignette();
+  drawGrain(frameNo);
+};
+
+window.seek(0);
+</script>
+</body>
+</html>

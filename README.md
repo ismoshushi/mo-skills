@@ -10,6 +10,7 @@
 | 中文长篇小说 · Chinese Novelist | 一句指令开写 10–50 章中文长篇小说：三层问答定大纲 → 逐章创作（3000–5000 字/章）→ 自动校验去 AI 味 | 整理版（MIT；针对社区 issues 改进：防循环/去重/文风校准/断点续写/EPUB 导出） | [chinese-novelist](./chinese-novelist) |
 | 微信公众号文章 · WeChat Article | 公众号发文一条龙：爆款技法写稿 → Markdown 转排版 HTML → API 建草稿（或手动发布） | 原创整理 | [wechat-article](./wechat-article) |
 | 今日头条发文 · Toutiao Article | 头条发文一条龙：算法逻辑写稿（标题/微头条）→ Playwright 浏览器自动化建草稿 | 原创整理 | [toutiao-article](./toutiao-article) |
+| 人生复盘 · Life Review | AI 当"中立镜子"带你做 45–60 分钟语音深访，输出六部分个人分析报告 | 原创整理 | [life-review](./life-review) |
 
 ## 安装单个 skill（Claude Code / Codex 通用）
 

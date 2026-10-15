@@ -14,7 +14,6 @@
 
 </div>
 
-
 ## ✨ 为什么用这个？
 
 写小说最难的是**坚持写完**。这个 Skill 专为解决这个痛点而生：
@@ -31,28 +30,6 @@
 安装skill：`npx skills add PenglongHuang/chinese-novelist-skill`
 
 输入指令：`使用 chinese-novelist 帮我写一部小说`
-
-## 📢 赞助商
-
-<p align="center">
-  <a href="https://www.infistar.cc/register?aff=29SS8B9E&ref_source=link">
-    <img src="https://raw.githubusercontent.com/PenglongHuang/chinese-novelist-skill/master/assets/infistar-banner.png" width="720" alt="Infistar.cc — 一站式全球大模型 API 服务平台"/>
-  </a>
-</p>
-
-**chinese-novelist-skill × [Infistar.cc](https://www.infistar.cc/register?aff=29SS8B9E&ref_source=link)**
-
-用这个技能包写长篇的朋友都知道：动辄几十万字的大纲回溯、多代理并行出章，额度往往比灵感先耗尽 💸。
-
-如果想放开手脚写长篇，推荐换上 Infistar：
-
-- ⚙️ **零配置接入**：无需修改代码，Claude Code / 客户端只需换上 Base URL 与 Key 即可开工。
-- 🏷️ **超低成本试错**：多模型价格极具优势。整卷重构、换文风重写、多代理并行爆肝不再肉疼。
-- 🧩 **全模型任意切**：Claude、GPT、Gemini、DeepSeek 一个 Key 全搞定，改个模型名就能对比打斗与感情戏表现。
-- 💳 **国内顺畅使用**：RMB 直接结算，全模型支持验真防掺水。
-- 🎁 **专属福利**：通过[专属通道](https://www.infistar.cc/register?aff=29SS8B9E&ref_source=link)注册即送 $5 体验额度。建议领完拿同一份大纲让两个模型各试跑 3 章，感受文笔差异 ✍️！
-
----
 
 ## 🖼️ 使用过程
 
@@ -75,7 +52,6 @@
   </tr>
 </table>
 
-
 ## 🧠 创作记忆
 
 每次创作后，Skill 会自动学习你的偏好：喜欢的题材类型、叙事风格、章节数量倾向、文字密度等。下次使用时，直接应用你的习惯，省去重复问答。
@@ -83,7 +59,6 @@
 <p align="center">
   <img src="https://raw.githubusercontent.com/PenglongHuang/chinese-novelist-skill/master/assets/memory-demo.png" width="600"/>
 </p>
-
 
 ## 📊 创作流程
 
@@ -292,10 +267,6 @@ chinese-novelist/
 
 - 💬 [GitHub Discussions](https://github.com/PenglongHuang/chinese-novelist-skill/discussions) — 使用心得、作品分享、功能想法
 - 🐛 [Issues](https://github.com/PenglongHuang/chinese-novelist-skill/issues) — 问题反馈与 bug 报告
-
-## 💖 赞助
-
-如果这个项目帮你写出了第一部小说，可以考虑[在爱发电赞助我](https://afdian.com/a/penglonghuang)，你的支持直接决定项目的更新速度 ⚡
 
 ## ⚖️ 许可
 

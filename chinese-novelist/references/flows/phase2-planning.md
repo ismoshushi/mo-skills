@@ -38,6 +38,16 @@
    }
    ```
 
+   **分卷（可选，针对 issue #20）**：长篇建议在规划时划分卷。每卷有卷名和起止章节，
+   在 `02-写作计划.json` 顶层加 `volumes` 字段：
+   ```json
+   "volumes": [
+     {"volumeNumber": 1, "title": "第一卷·风起", "fromChapter": 1, "toChapter": 30},
+     {"volumeNumber": 2, "title": "第二卷·云涌", "fromChapter": 31, "toChapter": 60}
+   ]
+   ```
+   不分卷就不加这个字段，不影响老项目。导出 EPUB 时按卷生成目录层级。
+
 完成后，执行以下两步：
 
 **1. 展示规划摘要并请求确认**

@@ -4,13 +4,11 @@
 
 ### 让 AI 为你写一部完整的中文小说
 
-[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/PenglongHuang/chinese-novelist-skill/releases/tag/v2.0)
-[![Claude Code Skill](https://img.shields.io/badge/Claude_Code-Skill-blue)](https://claude.com/claude-code)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+**版本**：2.1（整理版）｜**许可**：[MIT](LICENSE)
 
-> **🎉 v2.0 重构发布**：引入三层递进式问答、偏好记忆系统、中断续写、三种写作模式和自动校验修复！
->
-> 查看 [v1.0 → v2.0 升级说明](https://github.com/PenglongHuang/chinese-novelist-skill/pull/10) 了解详情。
+> **整理版说明**：本版基于 MIT 开源版本整理，针对社区 issues 做了这些改进——
+> 问答防循环、章节去重检查、文风漂移校准、断点续写加固、已有大纲接入、EPUB 导出。
+> 原 MIT 版权信息保留，见 LICENSE。
 
 </div>
 
@@ -27,38 +25,25 @@
 
 ## 🚀 快速开始
 
-安装skill：`npx skills add PenglongHuang/chinese-novelist-skill`
+安装 skill：`npx skills add ismoshushi/mo-skills --skill chinese-novelist`
 
 输入指令：`使用 chinese-novelist 帮我写一部小说`
 
 ## 🖼️ 使用过程
 
-<table>
-  <tr>
-    <td align="center"><b>Phase 1 — 交互问答</b></td>
-    <td align="center"><b>Phase 2 — 规划确认</b></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/PenglongHuang/chinese-novelist-skill/master/assets/phase1-qa.png" width="400"/></td>
-    <td><img src="https://raw.githubusercontent.com/PenglongHuang/chinese-novelist-skill/master/assets/phase2-plan.png" width="400"/></td>
-  </tr>
-  <tr>
-    <td align="center"><b>Phase 3 — 疯狂创作</b></td>
-    <td align="center"><b>Phase 4 — 完稿输出</b></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/PenglongHuang/chinese-novelist-skill/master/assets/phase3-writing.png" width="400"/></td>
-    <td><img src="https://raw.githubusercontent.com/PenglongHuang/chinese-novelist-skill/master/assets/phase4-done.png" width="400"/></td>
-  </tr>
-</table>
+```
+Phase 1 — 交互问答：三层递进式问答，定题材、定人物、定标题
+    ↓
+Phase 2 — 规划确认：生成人物档案、大纲、文风基准、写作计划
+    ↓
+Phase 3 — 疯狂创作：逐章写作，每章经过去重检查和文风校准
+    ↓
+Phase 4 — 完稿输出：自动校验字数与连贯性，可导出 EPUB
+```
 
 ## 🧠 创作记忆
 
 每次创作后，Skill 会自动学习你的偏好：喜欢的题材类型、叙事风格、章节数量倾向、文字密度等。下次使用时，直接应用你的习惯，省去重复问答。
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/PenglongHuang/chinese-novelist-skill/master/assets/memory-demo.png" width="600"/>
-</p>
 
 ## 📊 创作流程
 
@@ -251,22 +236,18 @@ chinese-novelist/
 
 **新增功能**
 - 🧠 **偏好记忆系统**：自动学习用户创作偏好（题材类型、叙事风格、章节数量倾向等）
-- ⏸️ **中断续写**：自动检测未完成项目，支持从断点继续创作
-- 📋 **写作计划 JSON**：机器可读的写作状态文件，支持并行写作协调
+- ⏸️ **中断续写**：自动检测未完成项目，支持从断点继续创作（以磁盘实际章节文件为准，不只信 JSON 状态）
+- 📥 **已有大纲接入**：已有世界观/人物/大纲/写好的章节可直接接入续写，`references/flows/phase0-import.md`
+- 📋 **写作计划 JSON**：机器可读的写作状态文件，支持并行写作协调（长篇可选分卷 `volumes` 字段）
 - 🔢 **字数检查脚本**：`scripts/check_chapter_wordcount.py` 自动验证每章 3000-5000 字要求
+- 🔍 **去重检查脚本**：`scripts/check_duplicate.py` 检查章节内重复句子与雷同段落
+- 📕 **EPUB 导出脚本**：`scripts/export_epub.py` 合并章节导出 EPUB，附带字数统计
 
 **文档重组**
 - 📁 `references/flows/`：新增 7 个流程文档（phase0-4 + shared-infrastructure）
 - 📁 `references/guides/`：重组 8 个写作指南文档
 
-**查看完整变更**：[v2.0 提交记录](https://github.com/PenglongHuang/chinese-novelist-skill/commits/v2.0/)
-
 ---
-
-## 💬 交流
-
-- 💬 [GitHub Discussions](https://github.com/PenglongHuang/chinese-novelist-skill/discussions) — 使用心得、作品分享、功能想法
-- 🐛 [Issues](https://github.com/PenglongHuang/chinese-novelist-skill/issues) — 问题反馈与 bug 报告
 
 ## ⚖️ 许可
 

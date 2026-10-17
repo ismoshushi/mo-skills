@@ -11,6 +11,7 @@
 | 微信公众号文章 · WeChat Article | 公众号发文一条龙：爆款技法写稿 → Markdown 转排版 HTML → API 建草稿（或手动发布） | 原创整理 | [wechat-article](./wechat-article) |
 | 今日头条发文 · Toutiao Article | 头条发文一条龙：算法逻辑写稿（标题/微头条）→ Playwright 浏览器自动化建草稿 | 原创整理 | [toutiao-article](./toutiao-article) |
 | 人生复盘 · Life Review | AI 当"中立镜子"带你做 45–60 分钟语音深访，输出六部分个人分析报告 | 原创整理 | [life-review](./life-review) |
+| 微信贴图号 · WeChat Sticker | 公众号贴图号一条龙：AI 热点选题 → ≤250 字文案 → 4 张 3:4 竖屏图 → 官方 API 存草稿 | 原创整理 | [wechat-sticker](./wechat-sticker) |
 | AI 知识类视频剪辑 · ai-knowledge-video | AI 全流程剪知识干货视频：配音对齐 → A-roll/B-roll 分镜编排表 → IP 一致性 + 四视角剪画面 | 原创整理 | [ai-knowledge-video](./ai-knowledge-video) |
 
 ## 安装单个 skill（Claude Code / Codex 通用）
